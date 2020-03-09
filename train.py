@@ -17,6 +17,11 @@ from utilities import *
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
+base_seed = 0
+torch.backends.cudnn.deterministic = True
+torch.manual_seed(base_seed)
+torch.cuda.manual_seed_all(base_seed)
+
 parser = argparse.ArgumentParser(description="LearnToPayAttn-CIFAR100")
 
 parser.add_argument("--batch_size", type=int, default=128, help="batch size")
@@ -47,6 +52,8 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
     ])
+    def _init_fn(worker_id):
+        random.seed(base_seed + worker_id)
     trainset = torchvision.datasets.CIFAR100(root='CIFAR100_data', train=True, download=True, transform=transform_train)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=opt.batch_size, shuffle=True, num_workers=8, worker_init_fn=_init_fn)
     testset = torchvision.datasets.CIFAR100(root='CIFAR100_data', train=False, download=True, transform=transform_test)

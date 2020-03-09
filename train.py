@@ -51,7 +51,7 @@ class DrawDataset(torch.utils.data.Dataset):
         self.transform = transform
 
     def __len__(self):
-        return 100
+        return 200
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
@@ -65,6 +65,9 @@ class DrawDataset(torch.utils.data.Dataset):
 
         center_x = random.randrange(3, 22)
         center_y = random.randrange(3, 22)
+        imsize = 32
+        rad  = 7
+        width = 4
 
         im_arr = np.dstack((
             np.ones([32, 32]) * 0,

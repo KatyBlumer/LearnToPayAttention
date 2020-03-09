@@ -14,6 +14,9 @@ from model1 import AttnVGG_before
 from model2 import AttnVGG_after
 from utilities import *
 
+import sympy
+from PIL import image
+
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
@@ -36,6 +39,50 @@ parser.add_argument("--log_images", action='store_true', help='log images and (i
 
 opt = parser.parse_args()
 
+class DrawDataset(Dataset):
+    def draw_circle(center, rad, thickness, imsize):
+      xx, yy = np.mgrid[:imsize, :imsize]
+      center_x, center_y = center
+      circ = (xx - center_x) ** 2 + (yy - center_y) ** 2
+      donut = np.logical_and(circ < (rad + thickness), circ > (rad - thickness))
+      return donut
+
+    def __init__(self, transform=None):
+        self.transform = transform
+
+    def __len__(self):
+        return 100
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        label = random.randrange(2)
+        if label:
+          circle_dist = 5
+        else:
+          circle_dist = 7
+
+        center_x = random.randrange(3, 22)
+        center_y = random.randrange(3, 22)
+
+        im_arr = np.dstack((
+            np.ones([32, 32]) * 0,
+            draw_circle(
+              [center_x, center_y],
+              rad, width, imsize)*255,
+            draw_circle(
+              [center_x+circle_dist, center_y+circle_dist],
+              rad, width, imsize)*255
+        )).astype(np.uint8)
+
+        im = Image.fromarray(im_arr)
+        if self.transform:
+            im = self.transform(im)
+
+        return (im, label)
+
+
 def main():
     ## load data
     # CIFAR-100: 500 training images and 100 testing images per class
@@ -54,9 +101,11 @@ def main():
     ])
     def _init_fn(worker_id):
         random.seed(base_seed + worker_id)
-    trainset = torchvision.datasets.CIFAR100(root='CIFAR100_data', train=True, download=True, transform=transform_train)
+    # trainset = torchvision.datasets.CIFAR100(root='CIFAR100_data', train=True, download=True, transform=transform_train)
+    trainset = DrawDataset(transform=transform_train)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=opt.batch_size, shuffle=True, num_workers=8, worker_init_fn=_init_fn)
-    testset = torchvision.datasets.CIFAR100(root='CIFAR100_data', train=False, download=True, transform=transform_test)
+    # testset = torchvision.datasets.CIFAR100(root='CIFAR100_data', train=False, download=True, transform=transform_test)
+    testset = DrawDataset(transform=transform_test)
     testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=5)
     print('done')
 

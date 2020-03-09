@@ -39,8 +39,8 @@ parser.add_argument("--log_images", action='store_true', help='log images and (i
 
 opt = parser.parse_args()
 
-class DrawDataset(Dataset):
-    def draw_circle(center, rad, thickness, imsize):
+class DrawDataset(torch.utils.data.Dataset):
+    def draw_circle(self, center, rad, thickness, imsize):
       xx, yy = np.mgrid[:imsize, :imsize]
       center_x, center_y = center
       circ = (xx - center_x) ** 2 + (yy - center_y) ** 2
@@ -68,10 +68,10 @@ class DrawDataset(Dataset):
 
         im_arr = np.dstack((
             np.ones([32, 32]) * 0,
-            draw_circle(
+            self.draw_circle(
               [center_x, center_y],
               rad, width, imsize)*255,
-            draw_circle(
+            self.draw_circle(
               [center_x+circle_dist, center_y+circle_dist],
               rad, width, imsize)*255
         )).astype(np.uint8)

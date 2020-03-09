@@ -15,7 +15,7 @@ from model2 import AttnVGG_after
 from utilities import *
 
 import sympy
-from PIL import image
+from PIL import Image
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"

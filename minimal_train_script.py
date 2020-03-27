@@ -186,7 +186,7 @@ class DrawDataset(torch.utils.data.Dataset):
 
         im = self.draw_func(label, self.imsize)
 
-        im = Image.fromarray(im_arr)
+        im = Image.fromarray(im)
         if self.transform:
             im = self.transform(im)
 

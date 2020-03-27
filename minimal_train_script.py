@@ -92,16 +92,81 @@ def visualize_attn_sigmoid(I, c, up_factor, nrow):
     return torch.from_numpy(vis).permute(2,0,1)
 
 #@title Dataset drawing
-class DrawDataset(torch.utils.data.Dataset):
-    def draw_circle(self, center, rad, thickness, imsize):
-      xx, yy = np.mgrid[:imsize, :imsize]
-      center_x, center_y = center
-      circ = (xx - center_x) ** 2 + (yy - center_y) ** 2
-      donut = np.logical_and(circ < (rad + thickness), circ > (rad - thickness))
-      return donut
+def create_rgb(r, g, b):
+  return np.dstack(
+      (r * 255,
+       g * 255,
+       b * 255
+       )
+  ).astype(np.uint8)
 
-    def __init__(self, transform=None):
+def draw_circle(center, rad=7, thickness=4, imsize=32):
+  xx, yy = np.mgrid[:imsize, :imsize]
+  center_x, center_y = center
+  circ = (xx - center_x) ** 2 + (yy - center_y) ** 2
+  donut = np.logical_and(circ < (rad + thickness), circ > (rad - thickness))
+  return donut
+
+def random_circle(imsize):
+  center_x = random.randrange(3, imsize - 3)
+  center_y = random.randrange(3, imsize - 3)
+  return draw_circle([center_x, center_y])
+
+
+def create_presence_example(label, imsize):
+  if label:
+    circ = random_circle(imsize)
+  else:
+    circ = np.zeros([imsize, imsize])
+
+  return create_rgb(circ, circ, circ)
+
+def create_color_example(label, imsize):
+  circ = random_circle(imsize)
+  zeros = np.zeros([imsize, imsize])
+
+  if label:
+    return create_rgb(circ, zeros, zeros)
+  else:
+    return create_rgb(zeros, circ, zeros)
+
+def create_location_example(label, imsize):
+  center_x = random.randrange(3, (imsize / 2) - 3)
+  center_y = random.randrange(3, imsize - 3)
+
+  if label:
+    center_x += (imsize / 2)
+
+  circ = draw_circle([center_x, center_y])
+  return create_rgb(circ, circ, circ)
+
+def create_distance_example(label, imsize):
+  dists = [5, 7]
+  dist = dists[label]
+
+  center_x = random.randrange(3, imsize - (3+max(dists)))
+  center_y = random.randrange(3, imsize - (3+max(dists)))
+  rad  = 7
+  thickness = 4
+
+  im_arr = create_rgb(
+      # red
+      np.zeros([32, 32]),
+      # green
+      draw_circle([center_x, center_y]),
+      # blue
+      draw_circle([center_x+dist, center_y+dist])
+  )
+
+  return Image.fromarray(im_arr)
+
+
+class DrawDataset(torch.utils.data.Dataset):
+
+    def __init__(self, draw_func, transform=None, imsize=32):
+        self.imsize=imsize
         self.transform = transform
+        self.draw_func = draw_func
 
     def __len__(self):
         return 200
@@ -112,32 +177,14 @@ class DrawDataset(torch.utils.data.Dataset):
         # print("Image idx", idx)
 
         label = random.randrange(2)
-        if label:
-          circle_dist = 5
-        else:
-          circle_dist = 7
 
-        center_x = random.randrange(3, 22)
-        center_y = random.randrange(3, 22)
-        imsize = 32
-        rad  = 7
-        width = 4
+        im = self.draw_func(label, self.imsize)
 
-        im_arr = np.dstack((
-            np.ones([32, 32]) * random.randrange(256),
-            self.draw_circle(
-              [center_x, center_y],
-              rad, width, imsize)*255,
-            self.draw_circle(
-              [center_x+circle_dist, center_y+circle_dist],
-              rad, width, imsize)*255
-        )).astype(np.uint8)
-
-        im = Image.fromarray(im_arr)
         if self.transform:
             im = self.transform(im)
 
         return (im, label)
+
 
 #@title Network pieces
 def weights_init_xavierUniform(module):

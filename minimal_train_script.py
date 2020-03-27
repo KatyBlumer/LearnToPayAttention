@@ -66,7 +66,7 @@ def visualize_attn_softmax(I, c, up_factor, nrow):
     a = F.softmax(c.view(N,C,-1), dim=2).view(N,C,W,H)
     if up_factor > 1:
         a = F.interpolate(a, scale_factor=up_factor, mode='bilinear', align_corners=False)
-    attn = utils.make_grid(a, nrow=nrow, normalize=True, scale_each=True)
+    attn = utils.make_grid(a, nrow=nrow, normalize=True, scale_each=True, pad_value=1)
     attn = attn.permute((1,2,0)).mul(255).byte().cpu().numpy()
     attn = cv2.applyColorMap(attn, cv2.COLORMAP_JET)
     attn = cv2.cvtColor(attn, cv2.COLOR_BGR2RGB)
@@ -82,7 +82,7 @@ def visualize_attn_sigmoid(I, c, up_factor, nrow):
     a = torch.sigmoid(c)
     if up_factor > 1:
         a = F.interpolate(a, scale_factor=up_factor, mode='bilinear', align_corners=False)
-    attn = utils.make_grid(a, nrow=nrow, normalize=False)
+    attn = utils.make_grid(a, nrow=nrow, normalize=False, pad_value=1)
     attn = attn.permute((1,2,0)).mul(255).byte().cpu().numpy()
     attn = cv2.applyColorMap(attn, cv2.COLORMAP_JET)
     attn = cv2.cvtColor(attn, cv2.COLOR_BGR2RGB)
@@ -316,11 +316,11 @@ transform_train = transforms.Compose([
     transforms.RandomCrop(IM_SIZE, padding=4),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
-    transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+    # transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
 ])
 transform_test = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+    # transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
 ])
 
 
@@ -418,10 +418,10 @@ for epoch in range(OPT.EPOCHS):
         # log images
         if OPT.LOG_IMAGES:
             print('\nlog images ...\n')
-            I_train = utils.make_grid(images_disp[0], nrow=6, normalize=True, scale_each=True)
+            I_train = utils.make_grid(images_disp[0], nrow=6, normalize=True, scale_each=True, pad_value=1)
             writer.add_image('train/image', I_train, epoch)
             if epoch == 0:
-                I_test = utils.make_grid(images_disp[1], nrow=6, normalize=True, scale_each=True)
+                I_test = utils.make_grid(images_disp[1], nrow=6, normalize=True, scale_each=True, pad_value=1)
                 writer.add_image('test/image', I_test, epoch)
         if OPT.LOG_IMAGES and OPT.USE_ATTN:
             print('\nlog attention maps ...\n')

@@ -5,11 +5,8 @@ sys.path.append(f"{os.getcwd()}/venv_t/lib/python3.7/site-packages")
 import argparse
 import collections
 import cv2
-# import matplotlib.pyplot as plt
 import numpy as np
 import random
-# import tensorflow as tf
-# from tensorflow.python.summary.summary_iterator import summary_iterator
 
 import torch
 import torch.nn as nn

@@ -36,6 +36,8 @@ parser.add_argument("--NORMALIZE_ATTN", action='store_true', help='if True, atte
 parser.add_argument("--USE_ATTN", action='store_false', help='turn down attention')
 parser.add_argument("--LOG_IMAGES", action='store_false', help='log images and (is available) attention maps')
 
+parser.add_argument("--EXAMPLE_TYPE", type=str, default="", help='Which type of task to train on')
+
 OPT = parser.parse_args()
 
 BASE_SEED = 0
@@ -159,6 +161,13 @@ def create_distance_example(label, imsize):
   )
 
   return Image.fromarray(im_arr)
+
+EXAMPLE_TYPES = {
+  'presence': create_presence_example,
+  'color': create_color_example,
+  'location': create_location_example,
+  'distance': create_distance_example,
+}
 
 
 class DrawDataset(torch.utils.data.Dataset):
@@ -325,11 +334,15 @@ transform_test = transforms.Compose([
 
 
 #@title Load network
+if OPT.EXAMPLE_TYPE not in EXAMPLE_TYPES:
+  raise InvalidArgumentError(f"EXAMPLE_TYPE value '{OPT.EXAMPLE_TYPE}' unknown; options are {EXAMPLE_TYPES.keys()}.")
+draw_func = EXAMPLE_TYPES[OPT.EXAMPLE_TYPE]
+
 print('\nloading the dataset ...\n')
-train_set = DrawDataset(transform=transform_train)
+train_set = DrawDataset(draw_func, transform=transform_train)
 train_loader = torch.utils.data.DataLoader(train_set, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=8, worker_init_fn=worker_init_func(0))
 
-test_set = DrawDataset(transform=transform_test)
+test_set = DrawDataset(draw_func, transform=transform_test)
 test_loader = torch.utils.data.DataLoader(test_set, batch_size=DATASET_SIZE, shuffle=False, num_workers=5, worker_init_fn=worker_init_func(9999))
 print('done')
 

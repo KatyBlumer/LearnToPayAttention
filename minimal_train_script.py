@@ -148,7 +148,7 @@ def create_distance_example(label, imsize):
   rad  = 7
   thickness = 4
 
-  im_arr = create_rgb(
+  im = create_rgb(
       # red
       np.zeros([32, 32]),
       # green
@@ -157,7 +157,7 @@ def create_distance_example(label, imsize):
       draw_circle([center_x+dist, center_y+dist])
   )
 
-  return Image.fromarray(im_arr)
+  return im
 
 EXAMPLE_TYPES = {
   'presence': create_presence_example,

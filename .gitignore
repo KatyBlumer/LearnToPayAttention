@@ -2,3 +2,5 @@ venv_t/*
 CIFAR100_data/*
 __pycache__/*
 .DS_Store
+logs/*
+logs_before/*

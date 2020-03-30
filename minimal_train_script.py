@@ -104,7 +104,7 @@ def draw_circle(center, rad=7, thickness=4, imsize=32):
   center_x, center_y = center
   circ = (xx - center_x) ** 2 + (yy - center_y) ** 2
   donut = np.logical_and(circ < (rad + thickness), circ > (rad - thickness))
-  return donut
+  return np.logical_not(donut)
 
 def random_circle(imsize):
   center_x = random.randrange(3, imsize - 3)
@@ -116,18 +116,18 @@ def create_presence_example(label, imsize):
   if label:
     circ = random_circle(imsize)
   else:
-    circ = np.zeros([imsize, imsize])
+    circ = np.ones([imsize, imsize])
 
   return create_rgb(circ, circ, circ)
 
 def create_color_example(label, imsize):
   circ = random_circle(imsize)
-  zeros = np.zeros([imsize, imsize])
+  ones = np.ones([imsize, imsize])
 
   if label:
-    return create_rgb(circ, zeros, zeros)
+    return create_rgb(circ, ones, ones)
   else:
-    return create_rgb(zeros, circ, zeros)
+    return create_rgb(ones, circ, ones)
 
 def create_location_example(label, imsize):
   center_x = random.randrange(3, (imsize / 2) - 3)
@@ -150,7 +150,7 @@ def create_distance_example(label, imsize):
 
   im = create_rgb(
       # red
-      np.zeros([32, 32]),
+      np.ones([32, 32]),
       # green
       draw_circle([center_x, center_y]),
       # blue

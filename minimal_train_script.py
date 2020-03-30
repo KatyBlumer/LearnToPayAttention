@@ -175,7 +175,7 @@ class DrawDataset(torch.utils.data.Dataset):
         self.draw_func = draw_func
 
     def __len__(self):
-        return 200
+        return DATASET_SIZE
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):

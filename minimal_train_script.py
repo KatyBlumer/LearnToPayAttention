@@ -370,8 +370,6 @@ writer = SummaryWriter(OPT.LOG_DIR)
 
 for epoch in range(OPT.EPOCHS):
     images_disp = []
-    # adjust learning rate
-    scheduler.step()
     writer.add_scalar('train/learning_rate', optimizer.param_groups[0]['lr'], epoch)
     print("\nepoch %d learning rate %f\n" % (epoch, optimizer.param_groups[0]['lr']))
     # run for one epoch
@@ -407,6 +405,9 @@ for epoch in range(OPT.EPOCHS):
                       f"running avg accuracy {(100*running_avg_accuracy):.2f}%"
                       )
             step += 1
+
+    # adjust learning rate
+    scheduler.step()
 
     # the end of each epoch: test & log
     print('\none epoch done, saving records ...\n')

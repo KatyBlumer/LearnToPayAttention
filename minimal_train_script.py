@@ -53,7 +53,7 @@ DATASET_SIZE = 1000
 # USE_ATTN = True
 # LOG_IMAGES = True  # False
 
-NUM_AUG = 3
+NUM_AUG = 1
 IM_SIZE = 32
 
 #@title Attn visualizers

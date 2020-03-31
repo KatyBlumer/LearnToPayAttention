@@ -401,10 +401,8 @@ for epoch in range(OPT.EPOCHS):
                 writer.add_scalar('train/loss', loss.item(), step)
                 writer.add_scalar('train/accuracy', accuracy, step)
                 writer.add_scalar('train/running_avg_accuracy', running_avg_accuracy, step)
-                print(f"[epoch {epoch}][aug {aug}/{NUM_AUG-1}][{i}/{len(train_loader)-1}] "
-                      f"loss {loss.item():.4f} accuracy {(100*accuracy):.2f}% "
-                      f"running avg accuracy {(100*running_avg_accuracy):.2f}%"
-                      )
+                print("[epoch %d][aug %d/%d][%d/%d] loss %.4f accuracy %.2f%% running avg accuracy %.2f%%"
+                    % (epoch, aug, NUM_AUG-1, i, len(train_loader)-1, loss.item(), (100*accuracy), (100*running_avg_accuracy)))
             step += 1
 
     # the end of each epoch: test & log

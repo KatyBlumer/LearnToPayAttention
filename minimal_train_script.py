@@ -56,6 +56,8 @@ DATASET_SIZE = 1000
 NUM_AUG = 1
 IM_SIZE = 32
 
+STEPS_PER_LOG = 2
+
 GRID_BORDER_VALUE = 0.9
 
 #@title Attn visualizers
@@ -392,7 +394,7 @@ for epoch in range(OPT.EPOCHS):
             loss.backward()
             optimizer.step()
             # display results
-            if i % 10 == 0:
+            if i % STEPS_PER_LOG == 0:
                 model.eval()  ## sets model in eval mode
                 pred, __, __, __ = model(inputs)  ## changed since last run bc optimizer updates model
                 predict = torch.argmax(pred, dim=1)

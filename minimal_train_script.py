@@ -382,6 +382,9 @@ for epoch in range(OPT.EPOCHS):
             inputs, labels = data
             if (aug == 0) and (i == 0): ## archive images in order to save to logs
                 images_disp.append(inputs[0:36,:,:,:])
+                if epoch == 0:  # so we have something to look at right away
+                    I_train = utils.make_grid(images_disp[0], nrow=6, pad_value=GRID_BORDER_VALUE)
+                    writer.add_image('train/image', I_train, epoch)
             # forward
             pred, __, __, __ = model(inputs)
             # backward
@@ -424,9 +427,6 @@ for epoch in range(OPT.EPOCHS):
             # images_test, labels_test = images_test.to(device), labels_test.to(device)
             if i == 0: ## archive images in order to save to logs
                 images_disp.append(images_test[0:36,:,:,:])
-                if epoch == 0:  # so we have something to look at right away
-                    I_train = utils.make_grid(images_disp[0], nrow=6, pad_value=GRID_BORDER_VALUE)
-                    writer.add_image('train/image', I_train, epoch)
             pred_test, __, __, __ = model(images_test)
             predict = torch.argmax(pred_test, 1)
             total += labels_test.size(0)

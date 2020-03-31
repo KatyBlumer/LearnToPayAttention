@@ -420,7 +420,7 @@ for epoch in range(OPT.EPOCHS):
             images_test, labels_test = data
             # images_test, labels_test = images_test.to(device), labels_test.to(device)
             if i == 0: ## archive images in order to save to logs
-                images_disp.append(inputs[0:36,:,:,:])
+                images_disp.append(images_test[0:36,:,:,:])
             pred_test, __, __, __ = model(images_test)
             predict = torch.argmax(pred_test, 1)
             total += labels_test.size(0)

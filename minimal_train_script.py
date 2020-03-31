@@ -25,7 +25,7 @@ from PIL import Image
 parser = argparse.ArgumentParser(description="LearnToPayAttn-CIFAR100")
 
 parser.add_argument("--BATCH_SIZE", type=int, default=128, help="batch size")
-parser.add_argument("--EPOCHS", type=int, default=300, help="number of epochs")
+parser.add_argument("--EPOCHS", type=int, default=75, help="number of epochs")
 parser.add_argument("--LR", type=float, default=0.1, help="initial learning rate")
 parser.add_argument("--LOG_DIR", type=str, default="logs", help='path of log files')
 
@@ -318,7 +318,6 @@ def worker_init_func(offset):
   return _init_fn
 
 #@title Transforms
-
 transform_train = transforms.Compose([
     transforms.RandomCrop(IM_SIZE, padding=4),
     transforms.RandomHorizontalFlip(),

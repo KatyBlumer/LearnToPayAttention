@@ -56,6 +56,8 @@ DATASET_SIZE = 1000
 NUM_AUG = 1
 IM_SIZE = 32
 
+GRID_BORDER_VALUE = 0.9
+
 #@title Attn visualizers
 def visualize_attn_softmax(I, c, up_factor, nrow):
     # image
@@ -65,7 +67,7 @@ def visualize_attn_softmax(I, c, up_factor, nrow):
     a = F.softmax(c.view(N,C,-1), dim=2).view(N,C,W,H)
     if up_factor > 1:
         a = F.interpolate(a, scale_factor=up_factor, mode='bilinear', align_corners=False)
-    attn = utils.make_grid(a, nrow=nrow, pad_value=1)
+    attn = utils.make_grid(a, nrow=nrow, pad_value=GRID_BORDER_VALUE)
     attn = attn.permute((1,2,0)).mul(255).byte().cpu().numpy()
     attn = cv2.applyColorMap(attn, cv2.COLORMAP_JET)
     attn = cv2.cvtColor(attn, cv2.COLOR_BGR2RGB)
@@ -81,7 +83,7 @@ def visualize_attn_sigmoid(I, c, up_factor, nrow):
     a = torch.sigmoid(c)
     if up_factor > 1:
         a = F.interpolate(a, scale_factor=up_factor, mode='bilinear', align_corners=False)
-    attn = utils.make_grid(a, nrow=nrow, pad_value=1)
+    attn = utils.make_grid(a, nrow=nrow, pad_value=GRID_BORDER_VALUE)
     attn = attn.permute((1,2,0)).mul(255).byte().cpu().numpy()
     attn = cv2.applyColorMap(attn, cv2.COLORMAP_JET)
     attn = cv2.cvtColor(attn, cv2.COLOR_BGR2RGB)
@@ -430,10 +432,10 @@ for epoch in range(OPT.EPOCHS):
         # log images
         if OPT.LOG_IMAGES:
             print('\nlog images ...\n')
-            I_train = utils.make_grid(images_disp[0], nrow=6, pad_value=1)
             writer.add_image('train/image', I_train, epoch)
+            I_train = utils.make_grid(images_disp[0], nrow=6, pad_value=GRID_BORDER_VALUE)
+            I_test = utils.make_grid(images_disp[1], nrow=6, pad_value=GRID_BORDER_VALUE)
             if epoch == 0:
-                I_test = utils.make_grid(images_disp[1], nrow=6, pad_value=1)
                 writer.add_image('test/image', I_test, epoch)
         if OPT.LOG_IMAGES and OPT.USE_ATTN:
             print('\nlog attention maps ...\n')

@@ -38,9 +38,6 @@ parser.add_argument("--EXAMPLE_TYPE", type=str, default="", help='Which type of 
 OPT = parser.parse_args()
 
 BASE_SEED = 0
-torch.backends.cudnn.deterministic = True
-torch.manual_seed(BASE_SEED)
-torch.cuda.manual_seed_all(BASE_SEED)
 
 # LOG_DIR = "logs/TEMP_CHANGE_THIS"
 
@@ -321,161 +318,168 @@ def worker_init_func(offset):
 
   return _init_fn
 
-#@title Transforms
-transform_train = transforms.Compose([
-    transforms.RandomCrop(IM_SIZE, padding=4, fill=(255, 255, 255)),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    # transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
-])
-transform_test = transforms.Compose([
-    transforms.ToTensor(),
-    # transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
-])
+def train(draw_func, log_dir):
+  torch.backends.cudnn.deterministic = True
+  torch.manual_seed(BASE_SEED)
+  torch.cuda.manual_seed_all(BASE_SEED)
+
+  #@title Transforms
+  transform_train = transforms.Compose([
+      transforms.RandomCrop(IM_SIZE, padding=4, fill=(255, 255, 255)),
+      transforms.RandomHorizontalFlip(),
+      transforms.ToTensor(),
+      # transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+  ])
+  transform_test = transforms.Compose([
+      transforms.ToTensor(),
+      # transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+  ])
 
 
-#@title Load network
-if OPT.EXAMPLE_TYPE not in EXAMPLE_TYPES:
-  raise InvalidArgumentError(f"EXAMPLE_TYPE value '{OPT.EXAMPLE_TYPE}' unknown; options are {EXAMPLE_TYPES.keys()}.")
-draw_func = EXAMPLE_TYPES[OPT.EXAMPLE_TYPE]
+  #@title Load network
+  print('\nloading the dataset ...\n')
+  train_set = DrawDataset(draw_func, transform=transform_train)
+  train_loader = torch.utils.data.DataLoader(train_set, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=8, worker_init_fn=worker_init_func(0))
 
-print('\nloading the dataset ...\n')
-train_set = DrawDataset(draw_func, transform=transform_train)
-train_loader = torch.utils.data.DataLoader(train_set, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=8, worker_init_fn=worker_init_func(0))
-
-test_set = DrawDataset(draw_func, transform=transform_test)
-test_loader = torch.utils.data.DataLoader(test_set, batch_size=DATASET_SIZE, shuffle=False, num_workers=5, worker_init_fn=worker_init_func(9999))
-print('done')
+  test_set = DrawDataset(draw_func, transform=transform_test)
+  test_loader = torch.utils.data.DataLoader(test_set, batch_size=DATASET_SIZE, shuffle=False, num_workers=5, worker_init_fn=worker_init_func(9999))
+  print('done')
 
 
-print('\nloading the network ...\n')
-net = AttnVGG_after(im_size=IM_SIZE, num_classes=100, ## TODO 100??
-    attention=OPT.USE_ATTN, normalize_attn=OPT.NORMALIZE_ATTN, init='xavierUniform')
-criterion = nn.CrossEntropyLoss()
-print('done')
+  print('\nloading the network ...\n')
+  net = AttnVGG_after(im_size=IM_SIZE, num_classes=100, ## TODO 100??
+      attention=OPT.USE_ATTN, normalize_attn=OPT.NORMALIZE_ATTN, init='xavierUniform')
+  criterion = nn.CrossEntropyLoss()
+  print('done')
 
-### Skip moving to GPU
-model = net
+  ### Skip moving to GPU
+  model = net
 
 
-### optimizer
-optimizer = optim.SGD(model.parameters(), lr=OPT.LR, momentum=0.9, weight_decay=5e-4)
-lr_lambda = lambda epoch : np.power(0.5, int(epoch/25))
-scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+  ### optimizer
+  optimizer = optim.SGD(model.parameters(), lr=OPT.LR, momentum=0.9, weight_decay=5e-4)
+  lr_lambda = lambda epoch : np.power(0.5, int(epoch/25))
+  scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
 
-#@title Train
-print('\nstart training ...\n')
-step = 0
-running_avg_accuracy = 0
+  #@title Train
+  print('\nstart training ...\n')
+  step = 0
+  running_avg_accuracy = 0
 
-writer = SummaryWriter(OPT.LOG_DIR)
+  writer = SummaryWriter(log_dir)
 
-for epoch in range(OPT.EPOCHS):
-    images_disp = []
-    writer.add_scalar('train/learning_rate', optimizer.param_groups[0]['lr'], epoch)
-    print("\nepoch %d learning rate %f\n" % (epoch, optimizer.param_groups[0]['lr']))
-    # run for one epoch
-    for aug in range(NUM_AUG):
-        for i, data in enumerate(train_loader):
-            # warm up
-            model.train()   ## apply prev grad step (I think?)
-            model.zero_grad()  ## set gradients to 0 bc we dont want to mix gradients b/w minibactches
-            optimizer.zero_grad()
-            inputs, labels = data
-            if (aug == 0) and (i == 0): ## archive images in order to save to logs
-                images_disp.append(inputs[0:36,:,:,:])
-                if epoch == 0:  # so we have something to look at right away
-                    I_train = utils.make_grid(images_disp[0], nrow=6, pad_value=GRID_BORDER_VALUE)
-                    writer.add_image('train/image', I_train, epoch)
-            # forward
-            pred, __, __, __ = model(inputs)
-            # backward
-            loss = criterion(pred, labels)
-            loss.backward()
-            optimizer.step()
-            # display results
-            if i % STEPS_PER_LOG == 0:
-                model.eval()  ## sets model in eval mode
-                pred, __, __, __ = model(inputs)  ## changed since last run bc optimizer updates model
-                predict = torch.argmax(pred, dim=1)
-                total = labels.size(0)
-                correct = torch.eq(predict, labels).sum().double().item()
-                accuracy = correct / total
-                running_avg_accuracy = 0.9*running_avg_accuracy + 0.1*accuracy
-                writer.add_scalar('train/loss', loss.item(), step)
-                writer.add_scalar('train/accuracy', accuracy, step)
-                writer.add_scalar('train/running_avg_accuracy', running_avg_accuracy, step)
-                print(f"[epoch {epoch}][aug {aug}/{NUM_AUG-1}][{i}/{len(train_loader)-1}] "
-                      f"loss {loss.item():.4f} accuracy {(100*accuracy):.2f}% "
-                      f"running avg accuracy {(100*running_avg_accuracy):.2f}%"
-                      )
-            step += 1
+  for epoch in range(OPT.EPOCHS):
+      images_disp = []
+      writer.add_scalar('train/learning_rate', optimizer.param_groups[0]['lr'], epoch)
+      print("\nepoch %d learning rate %f\n" % (epoch, optimizer.param_groups[0]['lr']))
+      # run for one epoch
+      for aug in range(NUM_AUG):
+          for i, data in enumerate(train_loader):
+              # warm up
+              model.train()   ## apply prev grad step (I think?)
+              model.zero_grad()  ## set gradients to 0 bc we dont want to mix gradients b/w minibactches
+              optimizer.zero_grad()
+              inputs, labels = data
+              if (aug == 0) and (i == 0): ## archive images in order to save to logs
+                  images_disp.append(inputs[0:36,:,:,:])
+                  if epoch == 0:  # so we have something to look at right away
+                      I_train = utils.make_grid(images_disp[0], nrow=6, pad_value=GRID_BORDER_VALUE)
+                      writer.add_image('train/image', I_train, epoch)
+              # forward
+              pred, __, __, __ = model(inputs)
+              # backward
+              loss = criterion(pred, labels)
+              loss.backward()
+              optimizer.step()
+              # display results
+              if i % STEPS_PER_LOG == 0:
+                  model.eval()  ## sets model in eval mode
+                  pred, __, __, __ = model(inputs)  ## changed since last run bc optimizer updates model
+                  predict = torch.argmax(pred, dim=1)
+                  total = labels.size(0)
+                  correct = torch.eq(predict, labels).sum().double().item()
+                  accuracy = correct / total
+                  running_avg_accuracy = 0.9*running_avg_accuracy + 0.1*accuracy
+                  writer.add_scalar('train/loss', loss.item(), step)
+                  writer.add_scalar('train/accuracy', accuracy, step)
+                  writer.add_scalar('train/running_avg_accuracy', running_avg_accuracy, step)
+                  print(f"[epoch {epoch}][aug {aug}/{NUM_AUG-1}][{i}/{len(train_loader)-1}] "
+                        f"loss {loss.item():.4f} accuracy {(100*accuracy):.2f}% "
+                        f"running avg accuracy {(100*running_avg_accuracy):.2f}%"
+                        )
+              step += 1
 
-    # adjust learning rate
-    scheduler.step()
+      # adjust learning rate
+      scheduler.step()
 
-    # the end of each epoch: test & log
-    print('\none epoch done, saving records ...\n')
-    torch.save(model.state_dict(), os.path.join(OPT.LOG_DIR, 'net.pth'))
-    if epoch == OPT.EPOCHS / 2:
-        torch.save(model.state_dict(), os.path.join(OPT.LOG_DIR, 'net%d.pth' % epoch))
-    model.eval()
-    total = 0
-    correct = 0
-    with torch.no_grad():  ## saves comp by disabling backprop
-        # log scalars for test set
-        for i, data in enumerate(test_loader, 0):
-            images_test, labels_test = data
-            # images_test, labels_test = images_test.to(device), labels_test.to(device)
-            if i == 0: ## archive images in order to save to logs
-                images_disp.append(images_test[0:36,:,:,:])
-            pred_test, __, __, __ = model(images_test)
-            predict = torch.argmax(pred_test, 1)
-            total += labels_test.size(0)
-            correct += torch.eq(predict, labels_test).sum().double().item()
-        writer.add_scalar('test/accuracy', correct/total, epoch)
-        print("\n[epoch %d] accuracy on test data: %.2f%%\n" % (epoch, 100*correct/total))
-        # log images
-        if OPT.LOG_IMAGES:
-            print('\nlog images ...\n')
-            I_train = utils.make_grid(images_disp[0], nrow=6, pad_value=GRID_BORDER_VALUE)
-            I_test = utils.make_grid(images_disp[1], nrow=6, pad_value=GRID_BORDER_VALUE)
-            if epoch == 0:
-                writer.add_image('test/image', I_test, epoch)
-            else:
-                ## Only save after epoch 0, because for epoch 0 we did it in training loop
-                writer.add_image('train/image', I_train, epoch)
-        if OPT.LOG_IMAGES and OPT.USE_ATTN:
-            print('\nlog attention maps ...\n')
-            # # base factor
-            # if opt.attn_mode == 'before':
-            #     min_up_factor = 1
-            # else:
-            min_up_factor = 2
-            # sigmoid or softmax
-            if OPT.NORMALIZE_ATTN:
-                vis_fun = visualize_attn_softmax
-            else:
-                vis_fun = visualize_attn_sigmoid
-            # training data
-            __, c1, c2, c3 = model(images_disp[0])
-            if c1 is not None:
-                attn1 = vis_fun(I_train, c1, up_factor=min_up_factor, nrow=6)
-                writer.add_image('train/attention_map_1', attn1, epoch)
-            if c2 is not None:
-                attn2 = vis_fun(I_train, c2, up_factor=min_up_factor*2, nrow=6)
-                writer.add_image('train/attention_map_2', attn2, epoch)
-            if c3 is not None:
-                attn3 = vis_fun(I_train, c3, up_factor=min_up_factor*4, nrow=6)
-                writer.add_image('train/attention_map_3', attn3, epoch)
-            # test data
-            __, c1, c2, c3 = model(images_disp[1])
-            if c1 is not None:
-                attn1 = vis_fun(I_test, c1, up_factor=min_up_factor, nrow=6)
-                writer.add_image('test/attention_map_1', attn1, epoch)
-            if c2 is not None:
-                attn2 = vis_fun(I_test, c2, up_factor=min_up_factor*2, nrow=6)
-                writer.add_image('test/attention_map_2', attn2, epoch)
-            if c3 is not None:
-                attn3 = vis_fun(I_test, c3, up_factor=min_up_factor*4, nrow=6)
-                writer.add_image('test/attention_map_3', attn3, epoch)
+      # the end of each epoch: test & log
+      print('\none epoch done, saving records ...\n')
+      torch.save(model.state_dict(), os.path.join(log_dir, 'net.pth'))
+      if epoch == OPT.EPOCHS / 2:
+          torch.save(model.state_dict(), os.path.join(log_dir, 'net%d.pth' % epoch))
+      model.eval()
+      total = 0
+      correct = 0
+      with torch.no_grad():  ## saves comp by disabling backprop
+          # log scalars for test set
+          for i, data in enumerate(test_loader, 0):
+              images_test, labels_test = data
+              # images_test, labels_test = images_test.to(device), labels_test.to(device)
+              if i == 0: ## archive images in order to save to logs
+                  images_disp.append(images_test[0:36,:,:,:])
+              pred_test, __, __, __ = model(images_test)
+              predict = torch.argmax(pred_test, 1)
+              total += labels_test.size(0)
+              correct += torch.eq(predict, labels_test).sum().double().item()
+          writer.add_scalar('test/accuracy', correct/total, epoch)
+          print("\n[epoch %d] accuracy on test data: %.2f%%\n" % (epoch, 100*correct/total))
+          # log images
+          if OPT.LOG_IMAGES:
+              print('\nlog images ...\n')
+              I_train = utils.make_grid(images_disp[0], nrow=6, pad_value=GRID_BORDER_VALUE)
+              I_test = utils.make_grid(images_disp[1], nrow=6, pad_value=GRID_BORDER_VALUE)
+              if epoch == 0:
+                  writer.add_image('test/image', I_test, epoch)
+              else:
+                  ## Only save after epoch 0, because for epoch 0 we did it in training loop
+                  writer.add_image('train/image', I_train, epoch)
+          if OPT.LOG_IMAGES and OPT.USE_ATTN:
+              print('\nlog attention maps ...\n')
+              # # base factor
+              # if opt.attn_mode == 'before':
+              #     min_up_factor = 1
+              # else:
+              min_up_factor = 2
+              # sigmoid or softmax
+              if OPT.NORMALIZE_ATTN:
+                  vis_fun = visualize_attn_softmax
+              else:
+                  vis_fun = visualize_attn_sigmoid
+              # training data
+              __, c1, c2, c3 = model(images_disp[0])
+              if c1 is not None:
+                  attn1 = vis_fun(I_train, c1, up_factor=min_up_factor, nrow=6)
+                  writer.add_image('train/attention_map_1', attn1, epoch)
+              if c2 is not None:
+                  attn2 = vis_fun(I_train, c2, up_factor=min_up_factor*2, nrow=6)
+                  writer.add_image('train/attention_map_2', attn2, epoch)
+              if c3 is not None:
+                  attn3 = vis_fun(I_train, c3, up_factor=min_up_factor*4, nrow=6)
+                  writer.add_image('train/attention_map_3', attn3, epoch)
+              # test data
+              __, c1, c2, c3 = model(images_disp[1])
+              if c1 is not None:
+                  attn1 = vis_fun(I_test, c1, up_factor=min_up_factor, nrow=6)
+                  writer.add_image('test/attention_map_1', attn1, epoch)
+              if c2 is not None:
+                  attn2 = vis_fun(I_test, c2, up_factor=min_up_factor*2, nrow=6)
+                  writer.add_image('test/attention_map_2', attn2, epoch)
+              if c3 is not None:
+                  attn3 = vis_fun(I_test, c3, up_factor=min_up_factor*4, nrow=6)
+                  writer.add_image('test/attention_map_3', attn3, epoch)
+
+if OPT.EXAMPLE_TYPE in EXAMPLE_TYPES:
+  draw_func = EXAMPLE_TYPES[OPT.EXAMPLE_TYPE]
+  train(draw_func, OPT.LOG_DIR)
+else:
+  raise InvalidArgumentError(f"EXAMPLE_TYPE value '{OPT.EXAMPLE_TYPE}' unknown; options are {EXAMPLE_TYPES.keys()}; or leave blank to use all.")

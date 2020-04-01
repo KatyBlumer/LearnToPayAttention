@@ -5,6 +5,7 @@ sys.path.append(f"{os.getcwd()}/venv_t/lib/python3.7/site-packages")
 import argparse
 import collections
 import cv2
+from multiprocessing.pool import ThreadPool
 import numpy as np
 import random
 
@@ -477,6 +478,19 @@ def train(draw_func, log_dir):
               if c3 is not None:
                   attn3 = vis_fun(I_test, c3, up_factor=min_up_factor*4, nrow=6)
                   writer.add_image('test/attention_map_3', attn3, epoch)
+
+def train_func(x):
+  name, func = x
+  train(func, f"{OPT.LOG_DIR}/{name}/")
+
+
+if not OPT.EXAMPLE_TYPE:
+  with ThreadPool(processes=len(EXAMPLE_TYPES)) as pool:
+    train_results = pool.map_async(
+        train_func,
+        EXAMPLE_TYPES.items()
+    )
+    print(train_results.get())
 
 if OPT.EXAMPLE_TYPE in EXAMPLE_TYPES:
   draw_func = EXAMPLE_TYPES[OPT.EXAMPLE_TYPE]

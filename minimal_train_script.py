@@ -34,7 +34,7 @@ parser.add_argument("--NORMALIZE_ATTN", action='store_true', help='if True, atte
 parser.add_argument("--USE_ATTN", action='store_false', help='turn down attention')
 parser.add_argument("--LOG_IMAGES", action='store_false', help='log images and (is available) attention maps')
 
-parser.add_argument("--EXAMPLE_TYPE", type=str, default="", help='Which type of task to train on')
+parser.add_argument("--EXAMPLE_TYPE", type=str, nargs="*", help='Which type of task to train on')
 
 OPT = parser.parse_args()
 
@@ -559,8 +559,18 @@ if not OPT.EXAMPLE_TYPE:
     )
     print(train_results.get())
 
-if OPT.EXAMPLE_TYPE in EXAMPLE_TYPES:
-  draw_func = EXAMPLE_TYPES[OPT.EXAMPLE_TYPE]
-  train(draw_func, OPT.LOG_DIR)
+elif len(OPT.EXAMPLE_TYPE) > 1:
+  filtered_types = {k: v for k, v in EXAMPLE_TYPES.items() if k in OPT.EXAMPLE_TYPE}
+  with ThreadPool(processes=len(filtered_types)) as pool:
+    train_results = pool.map_async(
+        train_func,
+        filtered_types.items()
+    )
+    print(train_results.get())
 else:
-  raise ValueError(f"EXAMPLE_TYPE value '{OPT.EXAMPLE_TYPE}' unknown; options are {EXAMPLE_TYPES.keys()}; or leave blank to use all.")
+  ex_type = OPT.EXAMPLE_TYPE[0]
+  if ex_type in EXAMPLE_TYPES:
+    draw_func = EXAMPLE_TYPES[OPT.EXAMPLE_TYPE]
+    train(draw_func, OPT.LOG_DIR)
+  else:
+    raise ValueError(f"EXAMPLE_TYPE value '{OPT.EXAMPLE_TYPE}' unknown; options are {EXAMPLE_TYPES.keys()}; or leave blank to use all.")

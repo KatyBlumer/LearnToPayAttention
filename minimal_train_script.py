@@ -140,6 +140,24 @@ def random_circle(imsize):
   return draw_circle([center_x, center_y])
 
 
+def draw_square(center, rad=2, thickness=2, imsize=32):
+  xx, yy = np.mgrid[:imsize, :imsize]
+  center_x, center_y = center
+  xx = np.abs(xx - center_x)
+  yy = np.abs(yy - center_y)
+
+  box = np.logical_xor(
+      np.logical_and(xx < (rad + thickness), yy < (rad + thickness)),
+      np.logical_and(xx < rad, yy < rad),
+  )
+  return np.logical_not(box)
+
+def random_square(imsize):
+  center_x = random.randrange(3, imsize - 3)
+  center_y = random.randrange(3, imsize - 3)
+  return draw_square([center_x, center_y])
+
+
 def create_presence_example(label, imsize):
   if label:
     circ = random_circle(imsize)
@@ -158,6 +176,24 @@ def create_color_example(label, imsize):
     return add_background(create_rgb(circ, ones, ones))
   else:
     return add_background(create_rgb(ones, circ, ones))
+
+
+def create_shape_example(label, imsize):
+  if label:
+    shape = random_square(imsize)
+  else:
+    shape = random_circle(imsize)
+
+  return add_background(create_rgb(shape, shape, shape))
+
+
+def create_number_example(label, imsize):
+  circ = random_circle(imsize)
+  if label:
+    circ = np.logical_and(circ, random_circle(imsize))
+
+  return add_background(create_rgb(circ, circ, circ))
+
 
 def create_location_example(label, imsize):
   center_x = random.randrange(3, (imsize / 2) - 3)
@@ -193,6 +229,8 @@ def create_distance_example(label, imsize):
 EXAMPLE_TYPES = {
   'presence': create_presence_example,
   'color': create_color_example,
+  'number': create_number_example,
+  'shape': create_shape_example,
   'location': create_location_example,
   'distance': create_distance_example,
 }

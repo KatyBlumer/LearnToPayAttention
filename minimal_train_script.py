@@ -101,6 +101,32 @@ def create_rgb(r, g, b):
        )
   ).astype(np.uint8)
 
+
+def add_to_im(lower, upper, bg_val=0):
+  if len(upper.shape) == 2:
+    upper = np.expand_dims(upper, axis=2)
+  # Discard pixels where the object exists, so we can replace them
+  lower = lower * (upper == bg_val)
+  return lower + upper
+
+
+def random_background(num_circs):
+  im = np.zeros([32, 32, 3]).astype(np.uint8)
+  for i in range(num_circs):
+    circ = random_circle(32)
+    circ = create_rgb(
+        circ * random.random(),
+        circ * random.random(),
+        circ * random.random()
+    )
+    im = add_to_im(im, circ)
+
+  return 255 - (im*0.3).astype(np.uint8)
+
+def add_background(im, bg_val=255):
+  im = add_to_im(lower=random_background(10), upper=im, bg_val=bg_val)
+  return im
+
 def draw_circle(center, rad=7, thickness=4, imsize=32):
   xx, yy = np.mgrid[:imsize, :imsize]
   center_x, center_y = center
@@ -120,16 +146,18 @@ def create_presence_example(label, imsize):
   else:
     circ = np.ones([imsize, imsize])
 
-  return create_rgb(circ, circ, circ)
+  return add_background(create_rgb(
+      circ, circ, circ
+      ))
 
 def create_color_example(label, imsize):
   circ = random_circle(imsize)
   ones = np.ones([imsize, imsize])
 
   if label:
-    return create_rgb(circ, ones, ones)
+    return add_background(create_rgb(circ, ones, ones))
   else:
-    return create_rgb(ones, circ, ones)
+    return add_background(create_rgb(ones, circ, ones))
 
 def create_location_example(label, imsize):
   center_x = random.randrange(3, (imsize / 2) - 3)
@@ -139,7 +167,7 @@ def create_location_example(label, imsize):
     center_x += (imsize / 2)
 
   circ = draw_circle([center_x, center_y])
-  return create_rgb(circ, circ, circ)
+  return add_background(create_rgb(circ, circ, circ))
 
 def create_distance_example(label, imsize):
   dists = [5, 7]
@@ -150,7 +178,7 @@ def create_distance_example(label, imsize):
   rad  = 7
   thickness = 4
 
-  im = create_rgb(
+  im = add_background(create_rgb(
       # red
       np.ones([32, 32]),
       # green
@@ -158,8 +186,9 @@ def create_distance_example(label, imsize):
       # blue
       draw_circle([center_x+dist, center_y+dist])
   )
-
+  )
   return im
+
 
 EXAMPLE_TYPES = {
   'presence': create_presence_example,

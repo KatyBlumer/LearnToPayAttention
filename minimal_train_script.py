@@ -563,4 +563,4 @@ if OPT.EXAMPLE_TYPE in EXAMPLE_TYPES:
   draw_func = EXAMPLE_TYPES[OPT.EXAMPLE_TYPE]
   train(draw_func, OPT.LOG_DIR)
 else:
-  raise InvalidArgumentError(f"EXAMPLE_TYPE value '{OPT.EXAMPLE_TYPE}' unknown; options are {EXAMPLE_TYPES.keys()}; or leave blank to use all.")
+  raise ValueError(f"EXAMPLE_TYPE value '{OPT.EXAMPLE_TYPE}' unknown; options are {EXAMPLE_TYPES.keys()}; or leave blank to use all.")

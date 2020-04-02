@@ -545,11 +545,13 @@ def train(draw_func, log_dir):
               if c3 is not None:
                   attn3 = vis_fun(I_test, c3, up_factor=min_up_factor*4, nrow=6)
                   writer.add_image('test/attention_map_3', attn3, epoch)
+  return 0
 
 def train_func(x):
   name, func = x
   print(f"\n________________________STARTING process for {name}_________\n")
   train(func, f"{OPT.LOG_DIR}/{name}/")
+  return 0
 
 
 if not OPT.EXAMPLE_TYPE:

@@ -113,7 +113,7 @@ def add_to_im(lower, upper, bg_val=0):
 def random_background(num_circs):
   im = np.zeros([32, 32, 3]).astype(np.uint8)
   for i in range(num_circs):
-    circ = random_circle(32)
+    circ = np.logical_not(random_circle(32))
     circ = create_rgb(
         circ * random.random(),
         circ * random.random(),

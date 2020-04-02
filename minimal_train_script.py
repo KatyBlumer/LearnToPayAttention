@@ -548,6 +548,7 @@ def train(draw_func, log_dir):
 
 def train_func(x):
   name, func = x
+  print(f"\n________________________STARTING process for {name}_________\n")
   train(func, f"{OPT.LOG_DIR}/{name}/")
 
 

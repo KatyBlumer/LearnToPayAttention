@@ -5,9 +5,9 @@ sys.path.append(f"{os.getcwd()}/venv_t/lib/python3.7/site-packages")
 import argparse
 import collections
 import cv2
-from multiprocessing.pool import ThreadPool
 import numpy as np
 import random
+import subprocess
 
 import torch
 import torch.nn as nn
@@ -24,6 +24,8 @@ import sympy
 from PIL import Image
 
 parser = argparse.ArgumentParser(description="LearnToPayAttn-CIFAR100")
+
+parser.add_argument("--RUN_MULTI", action='store_true', help='if True, rerun this script with multiple example types')
 
 parser.add_argument("--BATCH_SIZE", type=int, default=128, help="batch size")
 parser.add_argument("--EPOCHS", type=int, default=75, help="number of epochs")
@@ -547,33 +549,32 @@ def train(draw_func, log_dir):
                   writer.add_image('test/attention_map_3', attn3, epoch)
   return 0
 
-def train_func(x):
-  name, func = x
-  print(f"\n________________________STARTING process for {name}_________\n")
-  train(func, f"{OPT.LOG_DIR}/{name}/")
-  return 0
 
+if OPT.RUN_MULTI:
+  if OPT.EXAMPLE_TYPE:
+    filtered_types = {k: v for k, v in EXAMPLE_TYPES.items() if k in OPT.EXAMPLE_TYPE}
+  else:
+    filtered_types = EXAMPLE_TYPES
 
-if not OPT.EXAMPLE_TYPE:
-  with ThreadPool(processes=len(EXAMPLE_TYPES)) as pool:
-    train_results = pool.map_async(
-        train_func,
-        EXAMPLE_TYPES.items()
-    )
-    print(train_results.get())
+  procs = []
+  for name in filtered_types.keys():
+    log_subdir = f"{OPT.LOG_DIR}/{name}/"
+    os.makedirs(log_subdir, exist_ok=True)
+    cmd_l = ["python", "minimal_train_script.py", "--EXAMPLE_TYPE", f"{name}", "--LOG_DIR", log_subdir]
+    print(f"\n_____________RUNNING {name}:\n{cmd_l}\n_____________________")
+    with open(f"{log_subdir}/stdout.txt", 'w') as f:
+      proc = subprocess.Popen(cmd_l, stdout=f)
+    print(f"PID: {proc.pid}")
+    procs.append(proc)
 
-elif len(OPT.EXAMPLE_TYPE) > 1:
-  filtered_types = {k: v for k, v in EXAMPLE_TYPES.items() if k in OPT.EXAMPLE_TYPE}
-  with ThreadPool(processes=len(filtered_types)) as pool:
-    train_results = pool.map_async(
-        train_func,
-        filtered_types.items()
-    )
-    print(train_results.get())
+  print(f"_______________TO KILL: {'; '.join([f'kill {p.pid}' for p in procs])}")
+  exit_codes = [proc.wait() for proc in procs]
+  print(f"Exit codes: {exit_codes}")
+
 else:
   ex_type = OPT.EXAMPLE_TYPE[0]
-  if ex_type in EXAMPLE_TYPES:
-    draw_func = EXAMPLE_TYPES[OPT.EXAMPLE_TYPE]
-    train(draw_func, OPT.LOG_DIR)
-  else:
+  if ex_type not in EXAMPLE_TYPES:
     raise ValueError(f"EXAMPLE_TYPE value '{OPT.EXAMPLE_TYPE}' unknown; options are {EXAMPLE_TYPES.keys()}; or leave blank to use all.")
+
+  draw_func = EXAMPLE_TYPES[ex_type]
+  train(draw_func, OPT.LOG_DIR)

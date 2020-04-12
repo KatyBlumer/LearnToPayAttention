@@ -107,26 +107,25 @@ def create_rgb(r, g, b):
 def add_to_im(lower, upper, bg_val=0):
   if len(upper.shape) == 2:
     upper = np.expand_dims(upper, axis=2)
+
   # Discard pixels where the object exists, so we can replace them
-  lower = lower * (upper == bg_val)
+  keep_pixels = (upper == bg_val).all(axis=2)
+  keep_pixels = np.expand_dims(keep_pixels, axis=2)
+  lower = lower * keep_pixels
+
   return lower + upper
 
 
-def random_background(num_circs):
-  im = np.zeros([32, 32, 3]).astype(np.uint8)
-  for i in range(num_circs):
-    circ = np.logical_not(random_circle(32))
-    circ = create_rgb(
-        circ * random.random(),
-        circ * random.random(),
-        circ * random.random()
-    )
-    im = add_to_im(im, circ)
+def random_background():
+  return create_rgb(
+      np.random.rand(32, 32),
+      np.random.rand(32, 32),
+      np.random.rand(32, 32)
+  )
 
-  return 255 - (im*0.3).astype(np.uint8)
 
 def add_background(im, bg_val=255):
-  im = add_to_im(lower=random_background(10), upper=im, bg_val=bg_val)
+  im = add_to_im(lower=random_background(), upper=im, bg_val=bg_val)
   return im
 
 def draw_circle(center, rad=7, thickness=4, imsize=32):

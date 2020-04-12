@@ -27,8 +27,8 @@ parser = argparse.ArgumentParser(description="LearnToPayAttn-CIFAR100")
 
 parser.add_argument("--RUN_MULTI", action='store_true', help='if True, rerun this script with multiple example types')
 
-parser.add_argument("--BATCH_SIZE", type=int, default=128, help="batch size")
-parser.add_argument("--EPOCHS", type=int, default=75, help="number of epochs")
+parser.add_argument("--BATCH_SIZE", type=int, default=16, help="batch size")
+parser.add_argument("--EPOCHS", type=int, default=20, help="number of epochs")
 parser.add_argument("--LR", type=float, default=0.1, help="initial learning rate")
 parser.add_argument("--LOG_DIR", type=str, default="logs", help='path of log files')
 
@@ -44,7 +44,7 @@ BASE_SEED = 0
 
 # LOG_DIR = "logs/TEMP_CHANGE_THIS"
 
-DATASET_SIZE = 100
+DATASET_SIZE = 1000
 # BATCH_SIZE = 128
 # EPOCHS = 300
 # LR = 0.1

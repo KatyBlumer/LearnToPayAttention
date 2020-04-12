@@ -103,6 +103,17 @@ def create_rgb(r, g, b):
        )
   ).astype(np.uint8)
 
+def create_rgb_randcolor(r, g, b):
+  return np.dstack(
+      (r * (random.random() * 255),
+       g * (random.random() * 255),
+       b * (random.random() * 255)
+       )
+  ).astype(np.uint8)
+
+def create_randcolor(shape):
+  return create_rgb_randcolor(shape, shape, shape)
+
 
 def add_to_im(lower, upper, bg_val=0):
   if len(upper.shape) == 2:
@@ -124,7 +135,7 @@ def random_background():
   )
 
 
-def add_background(im, bg_val=255):
+def add_background(im, bg_val=0):
   im = add_to_im(lower=random_background(), upper=im, bg_val=bg_val)
   return im
 
@@ -133,7 +144,7 @@ def draw_circle(center, rad=7, thickness=4, imsize=32):
   center_x, center_y = center
   circ = (xx - center_x) ** 2 + (yy - center_y) ** 2
   donut = np.logical_and(circ < (rad + thickness), circ > (rad - thickness))
-  return np.logical_not(donut)
+  return donut
 
 def random_circle(imsize):
   center_x = random.randrange(3, imsize - 3)
@@ -151,7 +162,7 @@ def draw_square(center, rad=2, thickness=2, imsize=32):
       np.logical_and(xx < (rad + thickness), yy < (rad + thickness)),
       np.logical_and(xx < rad, yy < rad),
   )
-  return np.logical_not(box)
+  return box
 
 def random_square(imsize):
   center_x = random.randrange(3, imsize - 3)
@@ -163,20 +174,18 @@ def create_presence_example(label, imsize):
   if label:
     circ = random_circle(imsize)
   else:
-    circ = np.ones([imsize, imsize])
+    circ = np.zeros([imsize, imsize])
 
-  return add_background(create_rgb(
-      circ, circ, circ
-      ))
+  return add_background(create_randcolor(circ))
 
 def create_color_example(label, imsize):
   circ = random_circle(imsize)
-  ones = np.ones([imsize, imsize])
+  zeros = np.zeros([imsize, imsize])
 
   if label:
-    return add_background(create_rgb(circ, ones, ones))
+    return add_background(create_rgb_randcolor(circ, zeros, zeros))
   else:
-    return add_background(create_rgb(ones, circ, ones))
+    return add_background(create_rgb_randcolor(zeros, circ, zeros))
 
 
 def create_shape_example(label, imsize):
@@ -185,15 +194,15 @@ def create_shape_example(label, imsize):
   else:
     shape = random_circle(imsize)
 
-  return add_background(create_rgb(shape, shape, shape))
+  return add_background(create_randcolor(shape))
 
 
 def create_number_example(label, imsize):
-  circ = random_circle(imsize)
+  circ = create_randcolor(random_circle(imsize))
   if label:
-    circ = np.logical_and(circ, random_circle(imsize))
+    circ = add_to_im(lower=circ, upper=create_randcolor(random_circle(imsize)))
 
-  return add_background(create_rgb(circ, circ, circ))
+  return add_background(circ)
 
 
 def create_location_example(label, imsize):
@@ -204,7 +213,7 @@ def create_location_example(label, imsize):
     center_x += (imsize / 2)
 
   circ = draw_circle([center_x, center_y])
-  return add_background(create_rgb(circ, circ, circ))
+  return add_background(create_randcolor(circ))
 
 def create_distance_example(label, imsize):
   dists = [5, 7]
@@ -215,14 +224,10 @@ def create_distance_example(label, imsize):
   rad  = 7
   thickness = 4
 
-  im = add_background(create_rgb(
-      # red
-      np.ones([32, 32]),
-      # green
-      draw_circle([center_x, center_y]),
-      # blue
-      draw_circle([center_x+dist, center_y+dist])
-  )
+  im = add_background(add_to_im(
+      lower = create_randcolor(draw_circle([center_x, center_y])),
+      upper = create_randcolor(draw_circle([center_x+dist, center_y+dist])),
+      )
   )
   return im
 

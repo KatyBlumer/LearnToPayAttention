@@ -228,6 +228,7 @@ def create_distance_example(label, imsize):
   return im
 
 
+
 EXAMPLE_TYPES = {
   'presence': create_presence_example,
   'color': create_color_example,

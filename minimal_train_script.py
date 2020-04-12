@@ -216,7 +216,7 @@ def create_location_example(label, imsize):
   return add_background(create_randcolor(circ))
 
 def create_distance_example(label, imsize):
-  dists = [5, 7]
+  dists = [5, 9]
   dist = dists[label]
 
   center_x = random.randrange(3, imsize - (3+max(dists)))

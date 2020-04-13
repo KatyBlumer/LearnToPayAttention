@@ -386,6 +386,40 @@ def worker_init_func(offset):
   return _init_fn
 
 
+def is_interesting(attn_batch):
+  # any of the batch images, have variance above 0 (only 1 color channel)
+  return (torch.var(attn_batch.view(attn_batch.shape[0], -1), dim=1) > 0).any()
+
+
+def any_is_interesting(li):
+  for attn_map in li:
+    if is_interesting(attn_map):
+      return True
+  return False
+
+
+def save_attn_map(attn, log_dir, label, is_training, step):
+  train_or_test = "train" if is_training else "test"
+  fname = f"{log_dir}/attn_maps/{train_or_test}_step{step:04}_map{label}.npy"
+  attn = attn.detach().numpy()
+  try:
+    np.save(fname, attn, allow_pickle = False)
+  except:
+    os.makedirs(f"{log_dir}/attn_maps/")
+    np.save(fname, attn, allow_pickle = False)
+
+
+def save_if_interesting(li, step, is_training, log_dir):
+  if not any_is_interesting(li):
+    return False
+
+  print("Saving raw attention maps")
+  for i, attn_map in enumerate(li):
+    save_attn_map(attn_map, log_dir, i, is_training, step)
+
+  return True
+
+
 def train_step(
   i, aug, epoch, step, running_avg_accuracy, train_loader_len,
   data, model, optimizer, criterion,
@@ -426,7 +460,14 @@ def train_step(
   return train_batch_disp
 
 
-def log_images(step, train_batch_disp, test_loader, model, writer):
+def maybe_log_images(step, train_batch_disp, test_loader, model, writer, log_dir):
+  is_log_step = (step % STEPS_PER_LOG == 0)
+  __, c1_train, c2_train, c3_train = model(train_batch_disp)
+
+  interesting = save_if_interesting([c1_train, c2_train, c3_train], step, True, log_dir)
+  if not (interesting or is_log_step):
+    return
+
   print('\nlog images ...\n')
 
   for images_test, labels_test in test_loader:
@@ -440,7 +481,10 @@ def log_images(step, train_batch_disp, test_loader, model, writer):
   else:
       ## Only save after step 0, because for step 0 we did it in training loop
       writer.add_image('train/image', I_train, step)
+
   if OPT.USE_ATTN:
+      __, c1_test, c2_test, c3_test = model(test_batch_disp)
+      save_if_interesting([c1_test, c2_test, c3_test], step, False, log_dir)
       print('\nlog attention maps ...\n')
       # # base factor
       # if opt.attn_mode == 'before':
@@ -453,27 +497,26 @@ def log_images(step, train_batch_disp, test_loader, model, writer):
       else:
           vis_fun = visualize_attn_sigmoid
       # training data
-      __, c1, c2, c3 = model(train_batch_disp)
-      if c1 is not None:
-          attn1 = vis_fun(I_train, c1, up_factor=min_up_factor, nrow=6)
+      if c1_train is not None:
+          attn1 = vis_fun(I_train, c1_train, up_factor=min_up_factor, nrow=6)
           writer.add_image('train/attention_map_1', attn1, step)
-      if c2 is not None:
-          attn2 = vis_fun(I_train, c2, up_factor=min_up_factor*2, nrow=6)
+      if c2_train is not None:
+          attn2 = vis_fun(I_train, c2_train, up_factor=min_up_factor*2, nrow=6)
           writer.add_image('train/attention_map_2', attn2, step)
-      if c3 is not None:
-          attn3 = vis_fun(I_train, c3, up_factor=min_up_factor*4, nrow=6)
+      if c3_train is not None:
+          attn3 = vis_fun(I_train, c3_train, up_factor=min_up_factor*4, nrow=6)
           writer.add_image('train/attention_map_3', attn3, step)
       # test data
-      __, c1, c2, c3 = model(test_batch_disp)
-      if c1 is not None:
-          attn1 = vis_fun(I_test, c1, up_factor=min_up_factor, nrow=6)
+      if c1_test is not None:
+          attn1 = vis_fun(I_test, c1_test, up_factor=min_up_factor, nrow=6)
           writer.add_image('test/attention_map_1', attn1, step)
-      if c2 is not None:
-          attn2 = vis_fun(I_test, c2, up_factor=min_up_factor*2, nrow=6)
+      if c2_test is not None:
+          attn2 = vis_fun(I_test, c2_test, up_factor=min_up_factor*2, nrow=6)
           writer.add_image('test/attention_map_2', attn2, step)
-      if c3 is not None:
-          attn3 = vis_fun(I_test, c3, up_factor=min_up_factor*4, nrow=6)
+      if c3_test is not None:
+          attn3 = vis_fun(I_test, c3_test, up_factor=min_up_factor*4, nrow=6)
           writer.add_image('test/attention_map_3', attn3, step)
+
 
 def test_full_set(epoch, test_loader, model, writer):
   model.eval()
@@ -551,8 +594,8 @@ def train(draw_func, log_dir):
                 i, aug, epoch, step, running_avg_accuracy, len(train_loader),
                 data, model, optimizer, criterion,
                 writer)
-              if OPT.LOG_IMAGES and (step % STEPS_PER_LOG == 0):
-                log_images(step, train_batch_disp, test_loader, model, writer)
+              if OPT.LOG_IMAGES:
+                maybe_log_images(step, train_batch_disp, test_loader, model, writer, log_dir)
 
               step += 1
 

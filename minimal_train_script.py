@@ -421,7 +421,7 @@ def save_if_interesting(li, step, is_training, log_dir):
 
 
 def train_step(
-  i, aug, epoch, step, running_avg_accuracy, train_loader_len,
+  i, aug, epoch, step, train_loader_len,
   data, model, optimizer, criterion,
   writer
   ):
@@ -449,13 +449,10 @@ def train_step(
       total = labels.size(0)
       correct = torch.eq(predict, labels).sum().double().item()
       accuracy = correct / total
-      running_avg_accuracy = 0.9*running_avg_accuracy + 0.1*accuracy
       writer.add_scalar('train/loss', loss.item(), step)
       writer.add_scalar('train/accuracy', accuracy, step)
-      writer.add_scalar('train/running_avg_accuracy', running_avg_accuracy, step)
       print(f"[epoch {epoch}][aug {aug}/{NUM_AUG-1}][{i}/{train_loader_len-1}] "
             f"loss {loss.item():.4f} accuracy {(100*accuracy):.2f}% "
-            f"running avg accuracy {(100*running_avg_accuracy):.2f}%"
             )
   return train_batch_disp
 
@@ -584,7 +581,6 @@ def train(draw_func, log_dir):
   #@title Train
   print('\nstart training ...\n')
   step = 0
-  running_avg_accuracy = 0
 
   writer = SummaryWriter(log_dir)
 
@@ -596,7 +592,7 @@ def train(draw_func, log_dir):
       for aug in range(NUM_AUG):
           for i, data in enumerate(train_loader):
               train_batch_disp = train_step(
-                i, aug, epoch, step, running_avg_accuracy, len(train_loader),
+                i, aug, epoch, step, len(train_loader),
                 data, model, optimizer, criterion,
                 writer)
               if OPT.LOG_IMAGES:

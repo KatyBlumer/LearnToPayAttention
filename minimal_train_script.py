@@ -464,6 +464,9 @@ def maybe_log_images(step, train_batch_disp, test_loader, model, writer, log_dir
   is_log_step = (step % STEPS_PER_LOG == 0)
   __, c1_train, c2_train, c3_train = model(train_batch_disp)
 
+  for i, attn in enumerate([c1_train, c2_train, c3_train]):
+    writer.add_scalar(f'train/var_attn_{i}', torch.var(attn), step)
+
   interesting = save_if_interesting([c1_train, c2_train, c3_train], step, True, log_dir)
   if not (interesting or is_log_step):
     return
@@ -484,6 +487,8 @@ def maybe_log_images(step, train_batch_disp, test_loader, model, writer, log_dir
 
   if OPT.USE_ATTN:
       __, c1_test, c2_test, c3_test = model(test_batch_disp)
+      for i, attn in enumerate([c1_test, c2_test, c3_test]):
+        writer.add_scalar(f'test/var_attn_{i}', torch.var(attn), step)
       save_if_interesting([c1_test, c2_test, c3_test], step, False, log_dir)
       print('\nlog attention maps ...\n')
       # # base factor

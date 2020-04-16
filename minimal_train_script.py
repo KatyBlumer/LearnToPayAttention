@@ -61,14 +61,14 @@ STEPS_PER_LOG = 2
 GRID_BORDER_VALUE = 0.9
 
 #@title Attn visualizers
-def visualize_attn_base(I, c, up_factor, nrow, heatmap_func):
+def visualize_attn_base(I, c, up_factor, nrow, heatmap_func, norm_grid):
   # image
   img = I.permute((1,2,0)).cpu().numpy()
   # compute the heatmap
   a = heatmap_func(c)
   if up_factor > 1:
       a = F.interpolate(a, scale_factor=up_factor, mode='bilinear', align_corners=False)
-  attn = utils.make_grid(a, nrow=nrow, pad_value=GRID_BORDER_VALUE)
+  attn = utils.make_grid(a, nrow=nrow, pad_value=GRID_BORDER_VALUE, normalize=norm_grid, scale_each=norm_grid)
   attn = attn.permute((1,2,0)).mul(255).byte().cpu().numpy()
   attn = cv2.applyColorMap(attn, cv2.COLORMAP_JET)
   attn = cv2.cvtColor(attn, cv2.COLOR_BGR2RGB)
@@ -81,10 +81,10 @@ def visualize_attn_softmax(I, c, up_factor, nrow):
     def softmax_heatmap_func(c):
       N,C,W,H = c.size()
       a = F.softmax(c.view(N,C,-1), dim=2).view(N,C,W,H)
-    return visualize_attn_base(I, c, up_factor, nrow, softmax_heatmap_func)
+    return visualize_attn_base(I, c, up_factor, nrow, softmax_heatmap_func, norm_grid=True)
 
 def visualize_attn_sigmoid(I, c, up_factor, nrow):
-  return visualize_attn_base(I, c, up_factor, nrow, heatmap_func=torch.sigmoid)
+  return visualize_attn_base(I, c, up_factor, nrow, heatmap_func=torch.sigmoid, norm_grid=False)
 
 
 def scale_batch(batch):

@@ -472,6 +472,8 @@ def maybe_log_images(step, train_batch_disp, test_loader, model, writer, log_dir
 
   for images_test, labels_test in test_loader:
       test_batch_disp = images_test[0:36,:,:,:]
+      if step == 0:
+        np.save(f"{log_dir}/attn_maps/test_images.npy", test_batch_disp.detach().numpy(), allow_pickle = False)
       break  # should only run once anyway; test batch size = DATASET_SIZE
 
   I_train = utils.make_grid(train_batch_disp, nrow=6, pad_value=GRID_BORDER_VALUE)

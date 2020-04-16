@@ -545,8 +545,8 @@ def train(draw_func, log_dir):
 
   #@title Transforms
   transform_train = transforms.Compose([
-      transforms.RandomCrop(IM_SIZE, padding=4, fill=(255, 255, 255)),
-      transforms.RandomHorizontalFlip(),
+      # transforms.RandomCrop(IM_SIZE, padding=4, fill=(255, 255, 255)),
+      # transforms.RandomHorizontalFlip(),
       transforms.ToTensor(),
       # transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
   ])

@@ -87,6 +87,38 @@ def visualize_attn_sigmoid(I, c, up_factor, nrow):
   return visualize_attn_base(I, c, up_factor, nrow, heatmap_func=torch.sigmoid)
 
 
+def scale_batch(batch):
+  # WARNING assumes N,C,W,H dims
+  batch  = batch - batch.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis]
+  batch =  batch / batch.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis]
+  n = int(32 / batch.shape[-1])
+  batch = np.squeeze(
+      np.kron(
+          batch, np.ones((1, 1, n, n))
+      )
+  )
+  return batch
+
+def visualize_attn_composite(I, attn_maps, nrow):
+  img = I.permute((1,2,0)).cpu().numpy()
+  attn = torch.from_numpy(
+      np.stack(
+          (
+            scale_batch(attn_maps[0].cpu().detach().numpy()),
+            scale_batch(attn_maps[1].cpu().detach().numpy()),
+            scale_batch(attn_maps[2].cpu().detach().numpy())
+          ),
+          axis=1
+          )
+      )
+  attn = utils.make_grid(attn, nrow=nrow, pad_value=GRID_BORDER_VALUE)
+  attn = attn.permute((1,2,0)).mul(255).byte().cpu().numpy()
+  attn = np.float32(attn) / 255
+  # add the heatmap to the image
+  vis = 0.5 * img + 0.5  * attn
+  return torch.from_numpy(vis).permute(2,0,1)
+
+
 #@title Dataset drawing
 def create_rgb(r, g, b):
   return np.dstack(
@@ -520,6 +552,11 @@ def maybe_log_images(step, train_batch_disp, test_loader, model, writer, log_dir
       if c3_test is not None:
           attn3 = vis_fun(I_test, c3_test, up_factor=min_up_factor*4, nrow=6)
           writer.add_image('test/attention_map_3', attn3, step)
+
+      composite_train = visualize_attn_composite(I_train, [c1_train, c2_train, c3_train], nrow=6)
+      writer.add_image('train/attention_composite', composite_train, step)
+      composite_test = visualize_attn_composite(I_test, [c1_test, c2_test, c3_test], nrow=6)
+      writer.add_image('test/attention_composite', composite_test, step)
 
 
 def test_full_set(epoch, test_loader, model, writer):

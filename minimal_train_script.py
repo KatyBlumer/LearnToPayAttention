@@ -29,7 +29,7 @@ parser.add_argument("--RUN_MULTI", action='store_true', help='if True, rerun thi
 
 parser.add_argument("--BATCH_SIZE", type=int, default=32, help="batch size")
 parser.add_argument("--EPOCHS", type=int, default=10, help="number of epochs")
-parser.add_argument("--LR", type=float, default=0.03, help="initial learning rate")
+parser.add_argument("--LR", type=float, default=0.01, help="initial learning rate")
 parser.add_argument("--LOG_DIR", type=str, default="logs", help='path of log files')
 
 parser.add_argument("--NORMALIZE_ATTN", action='store_true', help='if True, attention map is normalized by softmax; otherwise use sigmoid')
